@@ -1,0 +1,64 @@
+---
+title: "get_image: Retrieve Manual Diagrams and Photos"
+sidebarTitle: "get_image"
+description: "get_image fetches a repair manual image by opaque path and returns a validated MCP image block. Supports JPEG, PNG, GIF, WebP, and more, up to 2 MB."
+---
+
+`get_image` retrieves wiring diagrams, component photos, and technical illustrations from repair manual pages as MCP image blocks that AI clients render inline. Pass it any image path from a `get_page` response — the image is validated, size-checked, and returned as base64-encoded data your client can display directly.
+
+## Parameters
+
+<ParamField query="path" type="string" required>
+  Opaque image path from a `get_page` response. Image paths appear as the target of `![alt text](<path>)` references in `get_page` Markdown output. Always obtained from `get_page` — never constructed manually.
+</ParamField>
+
+## Response
+
+The tool returns an MCP image block. AI clients that support MCP images render this inline.
+
+<ResponseField name="type" type="string">
+  Always `"image"`.
+</ResponseField>
+
+<ResponseField name="data" type="string">
+  Base64-encoded image bytes. This is the complete image — images are never truncated.
+</ResponseField>
+
+<ResponseField name="mimeType" type="string">
+  The MIME type of the image (e.g. `"image/jpeg"`, `"image/png"`, `"image/svg+xml"`).
+</ResponseField>
+
+## Supported Formats
+
+The following image formats are accepted:
+
+| Format | MIME Type |
+|---|---|
+| JPEG | `image/jpeg` |
+| PNG | `image/png` |
+| GIF | `image/gif` |
+| WebP | `image/webp` |
+| BMP | `image/bmp` |
+| TIFF | `image/tiff` |
+| SVG | `image/svg+xml` |
+| AVIF / HEIF | `image/avif`, `image/heif` |
+
+The server validates the image signature (magic bytes) against the declared MIME type and rejects payloads that do not match.
+
+## Size Limit
+
+Images are capped at **2 MB (2,097,152 bytes)**. The server checks both the `Content-Length` header and the actual downloaded payload size. If either exceeds the limit, the tool returns an error and no image data is returned. Images are never truncated — you either get the complete image or an error.
+
+## Error Cases
+
+| Situation | Error message |
+|---|---|
+| Image exceeds 2 MB | `"Image is N bytes, above the 2,097,152-byte (2 MB) limit. No partial image was returned."` |
+| Path points to an HTML page, not an image | `"This path is not an image. Use get_image only with an image path returned by get_page."` |
+| Image host unreachable | `"The image could not be reached. Try again later."` |
+| Upstream returned a non-2xx status | `"The image is unavailable (upstream returned N). Verify the opaque path came from get_page."` |
+| Invalid payload (zero bytes or mismatched signature) | `"The upstream response claimed to be an image, but its payload is invalid."` |
+
+<Warning>
+  Only pass image paths obtained from `get_page` responses. Passing a manual page path (not an image path) returns an error because the server detects the `text/html` content type and rejects it.
+</Warning>

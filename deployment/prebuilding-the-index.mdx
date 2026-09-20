@@ -1,0 +1,83 @@
+---
+title: "Pre-Build the Manual Search Index"
+sidebarTitle: "Search Index"
+description: "Pre-build the LEMON Manuals MCP full-text search index offline so that search_manual responses are instant in production instead of indexing on first use."
+---
+
+By default, the full-text search index is built lazily the first time a vehicle's manual is searched. For production or shared deployments, pre-building the index eliminates that first-search latency and ensures every `search_manual` call returns results instantly. The index is stored in a SQLite database and persists across server restarts.
+
+## Why Pre-Build?
+
+When the search index has not yet been built for a vehicle, the first `search_manual` call for that vehicle triggers an on-demand indexing run. The indexer tree-walks the vehicle's entire manual, fetches every page from `lemon-website`, and persists the full-text content to SQLite before returning results. Depending on the size of the manual and network latency to your backend, this can take several seconds to minutes per vehicle.
+
+In a production or shared environment where many vehicles may be queried at once, this lazy latency is unpredictable and user-facing. Pre-building moves all that work offline, so the live server only ever reads an already-complete index.
+
+## Index a Single Vehicle
+
+To index one vehicle, pass its opaque `uriPath` as an argument to the `index-manuals` script:
+
+```bash
+bun run index-manuals -- '/Volkswagen/2005/Touareg%20%287LA%29%20V8-4.2L%20%28BHX%29/'
+```
+
+The path argument is an opaque encoded vehicle root `uriPath` — the same token returned by `search_vehicles` in the `uriPath` field. Pass it exactly as returned; never decode or reconstruct it manually.
+
+You can pass multiple paths in a single invocation to index several vehicles at once:
+
+```bash
+bun run index-manuals -- \
+  '/Volkswagen/2005/Touareg%20%287LA%29%20V8-4.2L%20%28BHX%29/' \
+  '/Toyota/2010/Camry%20L4-2.5L%20%282AR-FE%29/'
+```
+
+## Index the Full Corpus
+
+To index every complete vehicle manual in both the LEMON and CHARM archives, run the script with no arguments:
+
+```bash
+bun run index-manuals
+```
+
+The script iterates all vehicles with complete manuals, fetches and indexes each one in sequence, and reports progress to stderr. It sets a non-zero exit code if any vehicle fails so you can detect and retry partial failures.
+
+<Warning>
+  This is a full-corpus job that walks every complete vehicle manual across ~305,000 vehicles. It can take significant time and disk space depending on how many vehicles have complete manuals in your archive. Run it as a background job or in a dedicated environment, not on your live server.
+</Warning>
+
+## Incremental Rollout
+
+You do not need to index everything before going live. A practical staged approach:
+
+<Steps>
+  <Step title="Index your highest-traffic vehicles first">
+    Identify the makes and models most commonly requested in your environment and index those with individual `uriPath` arguments.
+  </Step>
+  <Step title="Start the server">
+    Launch the MCP server. Pre-indexed vehicles will serve `search_manual` requests instantly. Unindexed vehicles fall back to lazy on-demand indexing.
+  </Step>
+  <Step title="Run the full-corpus job in the background">
+    Schedule `bun run index-manuals` as a background job to fill in the rest of the index incrementally. Already-indexed vehicles are skipped.
+  </Step>
+</Steps>
+
+This approach lets you serve useful results immediately while the full index builds in the background.
+
+## Search Database Location
+
+The search index is stored in a SQLite database file. By default it lives at:
+
+```
+./data/manual-search.sqlite
+```
+
+You can change this path with the `LEMON_SEARCH_DB` environment variable:
+
+```bash
+export LEMON_SEARCH_DB=/var/lib/lemon-manuals/search.sqlite
+```
+
+The directory you point `LEMON_SEARCH_DB` at must be **writable** and **persistent**. If the file is deleted or the directory is ephemeral (for example, inside a container with no volume mount), all indexed content is lost and lazy indexing starts over from scratch on the next `search_manual` call.
+
+<Tip>
+  Start by indexing your most commonly requested vehicles using their `uriPath` tokens from `search_vehicles`. The full-corpus index can be rebuilt at any time by re-running `bun run index-manuals` — already-indexed vehicles are not re-fetched.
+</Tip>

@@ -1,0 +1,86 @@
+{
+  "projectType": "api-service",
+  "projectName": "LEMON Manuals MCP",
+  "projectDescription": "A Model Context Protocol (MCP) server that gives AI assistants searchable access to the LEMON and CHARM self-hosted car repair manual archives, covering ~305,000 vehicles from 1960–2025.",
+  "theme": "luma",
+  "primaryColor": "#E8531F",
+  "lightColor": "#F5A27A",
+  "darkColor": "#B33A0F",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "configuration"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/databases",
+              "concepts/opaque-paths",
+              "concepts/search-index"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/finding-a-vehicle",
+              "guides/reading-a-manual",
+              "guides/searching-manual-content",
+              "guides/working-with-images"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/setup",
+              "deployment/prebuilding-the-index",
+              "deployment/docker"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Tools Reference",
+        "groups": [
+          {
+            "group": "MCP Tools",
+            "pages": [
+              "tools/overview",
+              "tools/list-makes",
+              "tools/search-vehicles",
+              "tools/get-page",
+              "tools/search-manual",
+              "tools/get-image"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Vehicle search across ~305,000 vehicles from the LEMON (1960–2025) and CHARM (1982–2013) repair-manual databases",
+    "Full-text search (FTS5) over manual titles and body content with lazy or pre-built indexing",
+    "Fetch and convert repair manual pages to clean Markdown via the get_page tool",
+    "Retrieve validated in-manual images as MCP image blocks via the get_image tool",
+    "Opaque encoded path tokens ensure safe, round-trip navigation across all tools",
+    "Stateless Streamable HTTP MCP transport — compatible with any MCP-capable AI client",
+    "Applicability filtering: filter search results by whether content applies to a specific vehicle year",
+    "Deduplication of search results across duplicate tree placements in the manual archive"
+  ],
+  "publicApiSurface": [
+    "MCP tool: list_makes — list all car makes with vehicle counts and year ranges",
+    "MCP tool: search_vehicles(query, limit) — free-text vehicle search returning drivetrain-grouped results",
+    "MCP tool: get_page(path, depth, max_bytes) — fetch a manual page or directory listing as Markdown",
+    "MCP tool: search_manual(path, query, mode, limit, applicable_only) — FTS5 search within a vehicle manual",
+    "MCP tool: get_image(path) — fetch an image from a manual page as an MCP image block",
+    "HTTP endpoint: POST /mcp — Streamable HTTP MCP endpoint",
+    "HTTP endpoint: GET /healthz — health check"
+  ]
+}

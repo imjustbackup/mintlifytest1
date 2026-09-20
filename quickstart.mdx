@@ -1,47 +1,54 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with LEMON Manuals MCP"
+sidebarTitle: "Quickstart"
+description: "Register LEMON Manuals MCP with your AI client and retrieve your first car repair manual page in under five minutes."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
+This page walks you through connecting an MCP-compatible AI client to a running LEMON Manuals MCP server and using it to find a vehicle, read a manual page, and search within a manual. The entire flow takes under five minutes once you have the prerequisites in place.
 
 ## Prerequisites
 
-Before you begin, you must have:
+- A running LEMON Manuals MCP server. See the [deployment and setup guide](/configuration) for instructions on standing one up.
+- An MCP-compatible AI client such as [Claude](https://claude.ai). The examples below use the Claude CLI, but any client that supports the Streamable HTTP MCP transport works.
 
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+## Steps
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Register the MCP server with your AI client">
+    Run the following command once to tell your AI client where the server lives. Replace `YOUR_SERVER` with the hostname or IP address of your LEMON Manuals MCP server.
 
     ```bash
-    npm install your-package
+    claude mcp add --transport http lemon-manuals http://YOUR_SERVER:8787/mcp
     ```
+
+    After registration, all five LEMON Manuals tools become available in every Claude conversation automatically. You do not need to repeat this step.
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
-    ```
+  <Step title="Find a vehicle">
+    Start a new conversation and ask your AI assistant to locate a specific vehicle. Be as specific as you like — make, model, year, and engine all help narrow the results.
+
+    > **You:** Find all manuals for a 2005 Volkswagen Touareg V8.
+
+    The AI calls `search_vehicles` with the query `"2005 Volkswagen Touareg V8"` and returns a grouped result. You will see the matched drivetrain (for example, `Touareg (7LA) V8-4.2L (BHX)`), its year, and opaque path tokens for every LEMON and CHARM source manual associated with that drivetrain.
+
+    <Tip>
+      All paths in the response are opaque encoded tokens that the AI client manages automatically. You never need to copy or type them — just continue the conversation naturally.
+    </Tip>
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
 
-    ```bash
-    your-cli start
-    ```
+  <Step title="Read a manual page">
+    Ask your AI assistant to open a specific section of the manual. The AI uses the path token from the previous result to call `get_page` and fetch the content.
+
+    > **You:** Show me the brake system repair section for that Touareg.
+
+    The AI navigates the manual's **Repair and Diagnosis** tree, fetching directory listings as needed until it reaches the brake system pages. It then returns the content as readable text, including any procedures, specifications, and links to related pages.
+  </Step>
+
+  <Step title="Search within a manual">
+    To jump directly to relevant pages without browsing the tree, ask your AI to search the manual for a specific term.
+
+    > **You:** Search the Touareg manual for "brake fluid".
+
+    The AI calls `search_manual` with the vehicle's root path token and the query `"brake fluid"`. It returns a ranked list of matching pages with body text snippets, so you can immediately see which results are most relevant and ask for the full content of any of them.
   </Step>
 </Steps>
-
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
-
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>

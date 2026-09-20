@@ -1,0 +1,45 @@
+---
+title: "MCP Tools Reference Overview"
+sidebarTitle: "Overview"
+description: "Complete reference for all five LEMON Manuals MCP tools: list_makes, search_vehicles, get_page, search_manual, and get_image."
+---
+
+The LEMON Manuals MCP server exposes five tools that AI assistants call to browse and retrieve car repair manual content from the LEMON (1960–2025) and CHARM (1982–2013) archives. Each tool handles a distinct step in the workflow — from discovering what makes are available, to fetching a specific wiring diagram.
+
+<CardGroup cols={2}>
+  <Card title="list_makes" icon="list" href="/tools/list-makes">
+    List every car make in both archives with vehicle counts and year ranges.
+  </Card>
+  <Card title="search_vehicles" icon="magnifying-glass" href="/tools/search-vehicles">
+    Find vehicles by free-text query and get opaque manual paths.
+  </Card>
+  <Card title="get_page" icon="file-lines" href="/tools/get-page">
+    Fetch any manual page or directory listing as clean Markdown.
+  </Card>
+  <Card title="search_manual" icon="magnifying-glass-plus" href="/tools/search-manual">
+    Full-text search within a specific vehicle's repair manual.
+  </Card>
+  <Card title="get_image" icon="image" href="/tools/get-image">
+    Retrieve a wiring diagram or photo as a rendered MCP image block.
+  </Card>
+</CardGroup>
+
+## How Tools Are Invoked
+
+You do not call these tools directly. An MCP-compatible AI client — such as Claude — calls them automatically based on the context of your conversation. When you ask "What's the brake bleeding procedure for a 2019 Honda Civic?", the client decides which tools to call, in what order, and with what parameters. You just ask your question in plain language.
+
+## Common Rules
+
+The following rules apply across all five tools:
+
+- **All paths are opaque encoded tokens.** Pass them exactly as returned by a previous tool call. Never decode, modify, or reconstruct a path — doing so will produce an error or fetch the wrong content.
+- **Paths chain between tools.** `search_vehicles` returns `uriPath` values that feed into `get_page` and `search_manual`. `get_page` returns image paths inside its Markdown output that feed into `get_image`.
+- **Search uses AND logic.** Both `search_vehicles` and `search_manual` require every query token to match. A result missing any single token is excluded. Drop tokens to broaden a search that returns nothing.
+- **Limits apply to all listing and search tools.** The default is 20 results; the maximum is 100. Use the `limit` parameter to adjust.
+
+## Endpoints
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/mcp` | `POST` | MCP Streamable HTTP transport — used by AI clients |
+| `/healthz` | `GET` | Health check — returns `200 OK` when the server is ready |

@@ -1,0 +1,71 @@
+---
+title: "What Is LEMON Manuals MCP?"
+sidebarTitle: "Introduction"
+description: "Learn how LEMON Manuals MCP exposes a 305,000-vehicle repair manual archive to AI assistants through the Model Context Protocol."
+---
+
+LEMON Manuals MCP is a stateless, streamable-HTTP Model Context Protocol server that gives AI assistants direct access to two professional car repair manual archives — LEMON and CHARM — covering approximately 305,000 vehicles from 1960 through 2025. Instead of copying manual content into a chat window, you ask your AI assistant natural-language questions and it retrieves, reads, and reasons over the actual manual pages on your behalf.
+
+## The Databases
+
+The server draws from two complementary archives.
+
+**LEMON** covers vehicles from 1960 through 2025 and is the primary source for modern makes and models. Each vehicle entry organises content into a **Repair and Diagnosis** tree (procedures, specifications, and diagnostic steps) and a **Parts and Labor** section (part references and flat-rate labor times).
+
+**CHARM** covers vehicles from 1982 through 2013 and provides an independent second source for that overlapping range. When both databases contain data for the same physical drivetrain, the server groups them and prefers the CHARM path as the primary result while still surfacing all LEMON paths in the same response.
+
+Together, the two archives index roughly 305,000 vehicles. The vehicle index loads from a pair of JSON files (`lemon-index.json` and `charm-index.json`) and is held in memory for fast, local searches — typical query time is around 200 ms.
+
+## How It Works
+
+The MCP server runs as a plain HTTP process and exposes a single endpoint (`/mcp`). Each request is handled statelessly: the server creates a fresh MCP transport per request while sharing the loaded vehicle index across all requests.
+
+Your AI client connects to this endpoint and gains access to five tools. When you ask a question about a vehicle, the AI decides which tools to call and in what order, passes the results between calls, and returns a synthesised answer to you. You never interact with the tools directly.
+
+Manual page content is fetched on demand from the lemon-website backend and converted to Markdown. All links and image references in the returned content are normalised to absolute encoded paths that you can pass directly back to `get_page` or `get_image`. The search database is built lazily on first use and persisted to SQLite for subsequent queries.
+
+<Note>
+  All paths returned by any tool are opaque encoded tokens. Pass them back to `get_page`, `search_manual`, or `get_image` exactly as returned. Never attempt to decode, modify, or reconstruct them.
+</Note>
+
+## The Five Tools
+
+Each tool serves a distinct role in the research workflow. Your AI assistant selects and chains them automatically.
+
+<CardGroup cols={2}>
+  <Card
+    title="list_makes"
+    icon="list"
+    href="/tools/overview#list-makes"
+  >
+    Returns every car make in both databases with vehicle counts and covered year ranges. Use this to discover what is available before searching.
+  </Card>
+  <Card
+    title="search_vehicles"
+    icon="magnifying-glass"
+    href="/tools/overview#search-vehicles"
+  >
+    Free-text search over make, model, engine, trim, and year. Returns matched drivetrains grouped with all their LEMON and CHARM source paths.
+  </Card>
+  <Card
+    title="get_page"
+    icon="file-lines"
+    href="/tools/overview#get-page"
+  >
+    Fetches a manual page or directory listing by opaque path and returns the content as Markdown. Supports configurable tree depth and response size limits.
+  </Card>
+  <Card
+    title="search_manual"
+    icon="text-search"
+    href="/tools/overview#search-manual"
+  >
+    Full-text search (FTS5) over a single vehicle's manual titles, body text, or both. Results include a prose snippet, duplicate placements, and parsed applicability labels.
+  </Card>
+  <Card
+    title="get_image"
+    icon="image"
+    href="/tools/overview#get-image"
+  >
+    Fetches a diagram or illustration by opaque image path and returns a validated MCP image block. Images over 2 MB are rejected and never silently truncated.
+  </Card>
+</CardGroup>

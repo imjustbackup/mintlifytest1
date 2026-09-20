@@ -1,0 +1,162 @@
+---
+title: "Search Inside a Vehicle's Repair Manual"
+sidebarTitle: "Search Manual"
+description: "Use search_manual to run full-text keyword searches across a vehicle manual's titles and body text, with applicability filtering and deduplication."
+---
+
+`search_manual` lets you keyword-search a specific vehicle's repair manual without browsing the full directory tree. Instead of navigating level-by-level with `get_page`, you supply a query string and get back a ranked list of matching pages — complete with breadcrumbs, body snippets, and direct paths you can follow immediately.
+
+## Basic Search
+
+To search a manual, you need two things: the vehicle root `uriPath` from `search_vehicles`, and a query string. The server searches the manual's full-text index and returns matching pages ranked by relevance.
+
+**Request**
+
+```json
+{
+  "name": "search_manual",
+  "arguments": {
+    "path": "/Volkswagen/2005/Touareg%20%287LA%29%20V8-4.2L%20%28BHX%29/",
+    "query": "brake fluid",
+    "mode": "both",
+    "limit": 5
+  }
+}
+```
+
+**Response**
+
+```json
+[
+ {
+  "title": "Brake Fluid — Checking and Topping Up",
+  "path": "/Volkswagen/2005/Touareg%20%287LA%29%20V8-4.2L%20%28BHX%29/Repair%20and%20Diagnosis/Brake%20System/Brake%20Fluid/",
+  "breadcrumb": ["Repair and Diagnosis", "Brake System", "Brake Fluid"],
+  "snippet": "Check the brake fluid level in the reservoir on top of the master cylinder. The level must be between the MIN and MAX marks. Use only DOT 4 brake fluid. Do not allow…",
+  "also_under": [
+   ["Repair and Diagnosis", "ABS", "Brake Fluid"]
+  ],
+  "image_only": false,
+  "applicability": {
+   "from": "2004",
+   "through": "2006",
+   "appliesToVehicleYear": true
+  }
+ }
+]
+```
+
+Each result gives you everything you need to decide whether the page is relevant and how to fetch it. Pass `path` directly to `get_page` to read the full procedure.
+
+## Search Modes
+
+`search_manual` supports three modes that control which fields are searched. The default mode `both` is recommended for general use.
+
+<Tabs>
+  <Tab title="both (default)">
+    Searches page titles, breadcrumbs, **and** body text simultaneously. Returns the most comprehensive results. Use this when you are not sure whether the topic appears in a heading or only in prose.
+
+    ```json
+    {
+      "name": "search_manual",
+      "arguments": {
+        "path": "...",
+        "query": "torque converter",
+        "mode": "both"
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="title">
+    Searches page titles and breadcrumbs only. Significantly faster because it does not require fetching and indexing full page bodies. Use this for quick topic discovery when you know the procedure by name.
+
+    ```json
+    {
+      "name": "search_manual",
+      "arguments": {
+        "path": "...",
+        "query": "oil filter",
+        "mode": "title"
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="body">
+    Searches full body text only. Best for finding specifications, part numbers, or component codes that may not appear in page titles.
+
+    ```json
+    {
+      "name": "search_manual",
+      "arguments": {
+        "path": "...",
+        "query": "J518",
+        "mode": "body"
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Understanding Results
+
+Each result object contains the following fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `title` | string | The page heading as it appears in the manual tree |
+| `path` | string | Opaque path to pass to `get_page` to read the full page |
+| `breadcrumb` | string[] | Navigation path within the manual tree, from root to the page |
+| `snippet` | string | Up to 205 characters of body prose from the page |
+| `also_under` | string[][] | Other locations in the tree that contain identical content |
+| `image_only` | boolean | `true` when the page has images but no prose text |
+| `applicability` | object \| undefined | Publisher-labeled year range, when present |
+
+### snippet
+
+The snippet is drawn from the page's body prose with title-like headings suppressed. If the page has no prose at all but contains images, the snippet reads `[image only — N images]`. If the body could not be fetched, it reads `[No page body text is available.]`.
+
+### also_under
+
+Repair manuals often place the same content in multiple locations in the tree — for example, a brake fluid procedure may appear under both `Brake System` and `ABS`. The `also_under` field lists the breadcrumbs of every duplicate placement, so results are deduplicated by content and you do not see the same page twice in the result list.
+
+### applicability
+
+Some multi-year manuals label individual pages with a build-date or model-year range. When the publisher has included this information, `applicability` contains:
+
+| Sub-field | Description |
+|---|---|
+| `from` | Start of the applicability range (e.g. `"2004"` or `"2004-09"` for month-precise) |
+| `through` | End of the applicability range |
+| `appliesToVehicleYear` | `true` if the vehicle year is within range, `false` if outside, `null` if uncertain |
+
+## Applicability Filtering
+
+Set `applicable_only: true` to automatically exclude pages whose `applicability.appliesToVehicleYear` is `false`. This filters the results to only those procedures confirmed to apply to the specific model year in the vehicle's `uriPath`.
+
+```json
+{
+  "name": "search_manual",
+  "arguments": {
+    "path": "/Volkswagen/2005/Touareg%20%287LA%29%20V8-4.2L%20%28BHX%29/",
+    "query": "airbag control module",
+    "mode": "both",
+    "applicable_only": true
+  }
+}
+```
+
+This is most useful when a single manual edition spans several model years and you want results relevant only to the year you are working on. Pages without any applicability label are always included — only explicitly out-of-range pages are dropped.
+
+Results that are in-range or unlabeled always rank above out-of-range results, even without `applicable_only: true`.
+
+## Search Tips
+
+- **All tokens must match.** If your query has three words, every page in the result set must contain all three. Drop tokens to broaden a search that returns nothing.
+- **Drop trim or engine specs first.** Searching `"brake pad"` will match more pages than `"front brake pad Sport Package"`.
+- **Use `title` mode for fast topic discovery.** When you know the section name, `title` mode avoids the overhead of a full body index and returns results faster.
+- **Use `body` or `both` for specs and codes.** Part numbers, component codes (like `J518`), and torque values typically live in body text, not headings.
+- **`limit` defaults to 20, max is 100.** Increase the limit if you need broader coverage of a large manual.
+
+<Tip>
+  The first search on an unindexed manual may be slow while the server fetches and indexes the full manual tree. `title` mode indexes quickly; `body` and `both` modes fetch every leaf page and can take noticeably longer on first use. Subsequent searches on the same manual are fast because the index is persisted.
+</Tip>

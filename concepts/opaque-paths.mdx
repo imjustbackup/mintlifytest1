@@ -1,0 +1,65 @@
+---
+title: "Opaque Paths: How Navigation Works"
+sidebarTitle: "Opaque Paths"
+description: "Learn how LEMON Manuals MCP uses opaque encoded path tokens for safe navigation between vehicle search results, manual pages, and images."
+---
+
+Every path returned by any tool in the LEMON Manuals MCP server is an opaque encoded token. You pass these tokens between tools to navigate from a vehicle search result to a manual page, from a manual page to a child page, or from a page to an image. Understanding what opaque paths are — and what you must never do with them — keeps navigation reliable across the full manual archive.
+
+## What Is an Opaque Path?
+
+An opaque path is a URL-encoded site path that uniquely identifies a resource on the manual server. For example, a vehicle root might look like:
+
+```
+/Volkswagen/2005/Touareg%20%287LA%29%20V8-4.2L%20%28BHX%29/
+```
+
+The encoding is intentional. Special characters like spaces, parentheses, and slashes are percent-encoded as part of the path itself, not as URL separators. If you decode, modify, or reconstruct a path, you break the encoding and the server will not recognize it.
+
+**Treat every opaque path as an atomic string.** Read it, store it if needed, and pass it back to a tool exactly as you received it — nothing more.
+
+## Where Paths Come From
+
+Paths flow through the tools in a directed sequence:
+
+<Steps>
+  <Step title="search_vehicles → vehicle root paths">
+    `search_vehicles` returns one result per matched drivetrain. Each result includes a `uriPath` field — the vehicle root path. This is the starting point for all manual navigation for that vehicle.
+  </Step>
+  <Step title="get_page → page paths and image paths">
+    `get_page` accepts a vehicle root path (or any page path) and returns the page content as markdown. That markdown contains links with opaque paths you can follow deeper into the manual tree. It also returns image paths for any diagrams or illustrations on the page.
+  </Step>
+  <Step title="search_manual → matching page paths">
+    `search_manual` accepts a vehicle root `uriPath` from `search_vehicles` and returns a list of matching pages. Each result includes a `path` field you can pass to `get_page` to read the full content of that page.
+  </Step>
+  <Step title="get_image → image content">
+    `get_image` accepts an image path returned by `get_page` and returns the validated image as an MCP image block. Images are capped at 2 MB and are never truncated.
+  </Step>
+</Steps>
+
+## Rules for Using Paths
+
+<Warning>
+  Violating any of these rules will cause tool calls to fail with an error. The server cannot recover a mangled path.
+
+  - **Always pass paths exactly as returned** — never decode, re-encode, or modify them in any way
+  - **Never construct or guess a path manually** — even if you can read the structure, hand-built paths will not match the server's encoding
+  - **Paths from one tool can be passed to compatible tools** — a vehicle `uriPath` goes to `get_page` or `search_manual`; an image path goes to `get_image`
+  - **Paths are specific to one server instance** — a path from one deployed server cannot be used against a different server
+</Warning>
+
+## Path Types
+
+There are three kinds of opaque paths in the system:
+
+| Type | Comes From | Accepted By |
+|------|-----------|-------------|
+| **Vehicle root path** | `search_vehicles` (`uriPath`) | `get_page`, `search_manual` |
+| **Page path** | `get_page` links, `search_manual` results (`path`) | `get_page` |
+| **Image path** | `get_page` image references | `get_image` |
+
+Each type is structurally distinct on the backend, which is why mixing them — for example, passing an image path to `get_page` — produces an error rather than silently returning wrong content.
+
+<Tip>
+  When you use an AI assistant with the LEMON Manuals MCP server, the assistant manages all path tracking automatically. You describe the vehicle and the repair topic you are interested in; the assistant handles retrieving, storing, and threading paths between tool calls. You never need to manually copy or manage path strings.
+</Tip>

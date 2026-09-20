@@ -1,0 +1,111 @@
+---
+title: "search_vehicles: Find Vehicles and Manual Paths"
+sidebarTitle: "search_vehicles"
+description: "search_vehicles finds vehicles by free-text query across make, model, engine, and year, returning grouped drivetrain results with manual uriPath tokens."
+---
+
+`search_vehicles` is the primary entry point for finding a vehicle manual. It searches the combined LEMON and CHARM archives by free text, deduplicates results by physical drivetrain where possible, and returns opaque `uriPath` tokens you can pass directly to `get_page` or `search_manual`.
+
+## Parameters
+
+<ParamField query="query" type="string" required>
+  Free-text words to match across make, model, engine/trim descriptor, and model year. Every word must appear in the result — order does not matter. Examples: `"2019 civic"`, `"miata 1994"`, `"f-150 5.0L 2021"`.
+</ParamField>
+
+<ParamField query="limit" type="integer" default="20">
+  Maximum number of drivetrain results to return. Minimum `1`, maximum `100`.
+</ParamField>
+
+## Response
+
+The tool returns a JSON array of vehicle search result objects. Results are deduplicated per physical drivetrain; CHARM's path is preferred as the primary `uriPath` when both archives cover the same drivetrain.
+
+<ResponseField name="make" type="string">
+  The manufacturer name (e.g. `"Honda"`).
+</ResponseField>
+
+<ResponseField name="model" type="string">
+  The model name including trim and variant codes (e.g. `"Civic (ES1/ES2/ES3/ES4/ES5) L4-1.7L"`).
+</ResponseField>
+
+<ResponseField name="years" type="array of string">
+  Model years covered by this drivetrain entry (e.g. `["2001", "2002", "2003", "2004", "2005"]`).
+</ResponseField>
+
+<ResponseField name="engine" type="string | null">
+  Engine or trim descriptor from the archive (e.g. `"V8-4.2L (BHX)"`). `null` when not specified.
+</ResponseField>
+
+<ResponseField name="uriPath" type="string">
+  Opaque vehicle root path. Pass this directly to `get_page` or `search_manual`. Never decode or reconstruct it.
+</ResponseField>
+
+<ResponseField name="isComplete" type="boolean">
+  Whether the manual index is fully populated for this vehicle.
+</ResponseField>
+
+<ResponseField name="variants" type="array of string">
+  Engine or trim variants that have been merged under this drivetrain (e.g. `["2.0L", "1.5L Turbo"]`).
+</ResponseField>
+
+<ResponseField name="databases" type="array of string">
+  Which archives cover this vehicle. Values are `"lemon"`, `"charm"`, or both.
+</ResponseField>
+
+<ResponseField name="manuals" type="array of object">
+  Individual manual entries from each archive that were merged into this drivetrain result.
+
+  <Expandable title="ManualRef fields">
+    <ResponseField name="database" type="string">
+      The source archive: `"lemon"` or `"charm"`.
+    </ResponseField>
+    <ResponseField name="engine" type="string | null">
+      The engine descriptor as recorded in this specific archive entry.
+    </ResponseField>
+    <ResponseField name="uriPath" type="string">
+      The opaque path for this specific archive's manual. Pass to `get_page` or `search_manual`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+**Query:** `"2019 Honda Civic"`
+
+```json
+[
+  {
+    "make": "Honda",
+    "model": "Civic Sedan (FC1/FC2) L4-2.0L",
+    "years": ["2016", "2017", "2018", "2019", "2020", "2021"],
+    "engine": "L4-2.0L",
+    "uriPath": "/Honda/2019/Civic%20Sedan%20%28FC1%2FFC2%29%20L4-2.0L/",
+    "isComplete": true,
+    "variants": ["L4-2.0L", "L4-1.5L Turbo"],
+    "databases": ["charm", "lemon"],
+    "manuals": [
+      {
+        "database": "charm",
+        "engine": "L4-2.0L",
+        "uriPath": "/Honda/2019/Civic%20Sedan%20%28FC1%2FFC2%29%20L4-2.0L/"
+      },
+      {
+        "database": "lemon",
+        "engine": "1.5 T",
+        "uriPath": "/Honda/2019/Civic%20Hatchback%20%28FK7%2FFG7%29%201.5%20T/"
+      }
+    ]
+  }
+]
+```
+
+## Tips
+
+- **Every word must match.** The query `"2019 civic si"` requires all three tokens to appear in the result's haystack. If no results come back, try removing the trim level.
+- **Drop engine specs to broaden.** Use `"civic 2019"` instead of `"civic 2019 1.5L turbo"` when you want to see all engine variants.
+- **Use the returned `uriPath` in subsequent tools.** Pass it to `get_page` to start browsing the manual tree, or to `search_manual` to keyword-search within it.
+- **The `manuals` array lists every source.** When LEMON and CHARM both cover the vehicle, both paths appear here — you can browse either one.
+
+<Warning>
+  If the query returns "No vehicles matched", try fewer or different words (for example, drop the trim level or engine displacement). The search requires every token to match, so one unrecognized word excludes all results.
+</Warning>

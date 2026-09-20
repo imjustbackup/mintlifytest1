@@ -1,0 +1,56 @@
+---
+title: "LEMON and CHARM: The Manual Databases"
+sidebarTitle: "Databases"
+description: "Understand the LEMON (1960–2025) and CHARM (1982–2013) car repair manual databases that power the MCP server's vehicle search and manual retrieval."
+---
+
+The MCP server indexes two complementary repair manual archives — LEMON and CHARM — and presents them as a single, unified catalog. When you search for a vehicle or fetch a manual page, you are drawing from one or both of these databases depending on the make, model, and year you are working with. Together they cover roughly 305,000 vehicles spanning more than six decades of automotive history.
+
+## LEMON Database
+
+LEMON is the broader of the two archives. It covers vehicles from **1960 through 2025**, spanning the full range of modern automotive history from early muscle cars through current model-year trucks and SUVs. Its engine descriptors tend to be terse labels — for example, `"4.2 M"` — that identify displacement and fuel type without the richer coded format found in CHARM.
+
+LEMON is the primary source for vehicles outside of CHARM's window, including any model year before 1982 or after 2013.
+
+## CHARM Database
+
+CHARM covers vehicles from **1982 through 2013**. Within that window it is generally preferred over LEMON because it uses descriptive engine codes — for example, `"V8-4.2L (BHX)"` — that include the configuration, displacement, and manufacturer code. These labels make it easier to distinguish engine variants and confirm you are looking at the right manual.
+
+When a vehicle exists in both databases, the server uses CHARM as the primary navigation path (its `uriPath`) while still exposing the LEMON manual as an additional source in the `manuals` list.
+
+## How They Work Together
+
+Both databases are loaded together when the server starts. Vehicles that share the same make, model, engine displacement, and year range are recognized as the same physical drivetrain and merged into a single search result. This deduplication means you see one result per drivetrain rather than separate LEMON and CHARM hits for the same car.
+
+When a drivetrain appears in both databases, the merged result:
+
+- Uses the **CHARM `uriPath`** as the primary root (because CHARM's descriptive engine codes and cleaner tree structure are preferred)
+- Lists **both LEMON and CHARM** under `databases` and `manuals` so you can access either archive directly
+
+The combined index totals approximately **305,000 vehicles**.
+
+## Manual Structure
+
+Every vehicle root path points to a directory that contains two main sections:
+
+<CardGroup cols={2}>
+  <Card title="Repair and Diagnosis/" icon="wrench">
+    The main repair manual tree. This is where you find diagnostic procedures, step-by-step repair instructions, torque specifications, wiring diagrams, and component locations. The full-text `search_manual` tool indexes this tree.
+  </Card>
+  <Card title="Parts and Labor/" icon="list">
+    Parts lists and labor time information. Use this section to look up part numbers, exploded-view diagrams, and flat-rate labor estimates for a given repair.
+  </Card>
+</CardGroup>
+
+Navigate into either section by fetching the vehicle root path with `get_page`, then following the child links returned in the directory listing.
+
+## Database Coverage
+
+| Database | Year Range   | Approximate Scope                          |
+|----------|--------------|--------------------------------------------|
+| LEMON    | 1960 – 2025  | Broad historical and current-model coverage |
+| CHARM    | 1982 – 2013  | Descriptive engine codes; preferred primary path for overlap years |
+
+<Note>
+  Both databases are **read-only** through the MCP tools. You cannot add, edit, or delete manual content through the server.
+</Note>

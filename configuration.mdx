@@ -1,0 +1,34 @@
+---
+title: "Configure LEMON Manuals MCP for Your Setup"
+sidebarTitle: "Configuration"
+description: "Configure the LEMON Manuals MCP server with environment variables to point at your data directory, index files, and manual archive URL."
+---
+
+The LEMON Manuals MCP server reads all of its settings from environment variables at startup. There is no configuration file — set the variables in your process environment, container spec, or service definition, and the server picks them up automatically.
+
+<Note>
+  These are server-side settings for whoever hosts the MCP server. If you are an end-user connecting to an existing server, you do not need to configure anything.
+</Note>
+
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `LEMON_BASE_URL` | `http://127.0.0.1:18080` | URL of the lemon-website backend that serves manual pages. The MCP server fetches all page content from this address. |
+| `LEMON_DATA_DIR` | `./data` | Directory where index files and the search database live. All other path defaults are relative to this directory. |
+| `LEMON_INDEX_JSON` | `$LEMON_DATA_DIR/lemon-index.json` | Path to the LEMON vehicle index file. |
+| `CHARM_INDEX_JSON` | `$LEMON_DATA_DIR/charm-index.json` | Path to the CHARM vehicle index file. |
+| `LEMON_SEARCH_DB` | `$LEMON_DATA_DIR/manual-search.sqlite` | Path to the SQLite FTS5 search database used by `search_manual`. |
+| `PORT` | `8787` | HTTP port the MCP server listens on. The `/mcp` and `/healthz` endpoints are served at this port. |
+
+## Index Files
+
+The vehicle index is split into two JSON files: `lemon-index.json` for the LEMON database (1960–2025) and `charm-index.json` for the CHARM database (1982–2013). Together they describe approximately 305,000 vehicles and are loaded entirely into memory at startup. Typical load time is around 200 ms.
+
+These files are not included in the source repository because of their size (approximately 147 MB combined). You must obtain them from your lemon-website deployment and place them in the directory pointed to by `LEMON_DATA_DIR` (or set `LEMON_INDEX_JSON` and `CHARM_INDEX_JSON` to their exact locations).
+
+The full-text search database at `LEMON_SEARCH_DB` is built lazily: the first time `search_manual` is called for a vehicle, the server walks that vehicle's manual tree, ingests the page bodies, and persists the result to the SQLite file. Subsequent searches for the same vehicle are fast. For production use, pre-build the index before serving traffic so that the first user request does not trigger a slow ingestion pass.
+
+<Warning>
+  The directory containing the search database must be writable by the server process and must persist across restarts. If the directory is read-only or ephemeral (for example, a read-only container filesystem or an in-memory tmpfs), lazy indexing will fail and previously indexed content will be lost on restart.
+</Warning>

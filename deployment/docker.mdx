@@ -1,0 +1,87 @@
+---
+title: "Run LEMON Manuals MCP in Docker"
+sidebarTitle: "Docker"
+description: "Deploy LEMON Manuals MCP as a Docker container with persistent data volumes for the vehicle index files and search database."
+---
+
+A `Dockerfile` is included in the repository so you can run the MCP server as a container without installing Bun on the host. The image is built on the official `oven/bun:1-alpine` base, installs only production dependencies, and starts the server directly with Bun. The container exposes port `8787` and expects a writable `/app/data` volume for the vehicle index files and search database.
+
+## What the Dockerfile Does
+
+The included `Dockerfile` does the following:
+
+```dockerfile
+FROM docker.io/oven/bun:1-alpine
+WORKDIR /app
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --production
+COPY src ./src
+RUN mkdir -p /app/data && chown bun:bun /app/data
+USER bun
+EXPOSE 8787
+ENTRYPOINT ["bun", "src/index.ts"]
+```
+
+It installs only production dependencies, copies the `src/` directory, creates the `/app/data` directory owned by the `bun` user, and starts the server as a non-root user. No index files are bundled — you supply them at runtime via a volume mount.
+
+## Building the Image
+
+Build the image from the repository root:
+
+```bash
+docker build -t lemon-manuals-mcp .
+```
+
+## Running the Container
+
+Run the container with a data volume and your backend URL:
+
+```bash
+docker run -d \
+  -p 8787:8787 \
+  -v /path/to/your/data:/app/data \
+  -e LEMON_BASE_URL=http://your-lemon-backend:8080 \
+  lemon-manuals-mcp
+```
+
+Replace `/path/to/your/data` with the absolute path to a local directory that already contains `lemon-index.json` and `charm-index.json`. The search database (`manual-search.sqlite`) is created automatically in that same directory on first run.
+
+## Volume Requirements
+
+The mounted data directory must contain the following before you start the container:
+
+| File | Required | Notes |
+|---|---|---|
+| `lemon-index.json` | Yes | Fetched from the cluster; see [Setup](/deployment/setup) |
+| `charm-index.json` | Yes | Fetched from the cluster; see [Setup](/deployment/setup) |
+| `manual-search.sqlite` | No | Created automatically; must be writable |
+
+The `manual-search.sqlite` file is created by the server on first run. The directory that contains it must be writable by the `bun` user inside the container (UID 999 in the `oven/bun:1-alpine` image). If you encounter permission errors, ensure the host directory is owned by or writable to that UID.
+
+## Environment Variables
+
+The container accepts the same environment variables as the bare server. Pass them with `-e` flags in your `docker run` command or via a `--env-file`:
+
+| Variable | Default | Description |
+|---|---|---|
+| `LEMON_BASE_URL` | `http://127.0.0.1:18080` | Base URL of the `lemon-website` backend that serves manual pages |
+| `LEMON_DATA_DIR` | `/app/data` | Directory for index files and the search database |
+| `LEMON_SEARCH_DB` | `$LEMON_DATA_DIR/manual-search.sqlite` | Explicit path to the SQLite search database |
+| `LEMON_INDEX_JSON` | `$LEMON_DATA_DIR/lemon-index.json` | Path to the LEMON vehicle index file |
+| `CHARM_INDEX_JSON` | `$LEMON_DATA_DIR/charm-index.json` | Path to the CHARM vehicle index file |
+| `PORT` | `8787` | Port the HTTP server listens on inside the container |
+
+## Health Check
+
+The server exposes a health endpoint at `/healthz`. Use it in your container orchestration or monitoring setup to confirm the server is up and the vehicle index has loaded:
+
+```bash
+curl http://localhost:8787/healthz
+# ok
+```
+
+A `200 ok` response means the server is ready to accept MCP requests. You can pass this as a Docker `HEALTHCHECK` instruction or configure it in your load balancer or Kubernetes readiness probe.
+
+<Note>
+  The search database directory inside the container must be writable. If you run the container with a read-only root filesystem, make sure you mount `/app/data` explicitly as a writable volume — that is the only path the server writes to at runtime.
+</Note>

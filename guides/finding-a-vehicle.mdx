@@ -1,0 +1,153 @@
+---
+title: "Find Vehicles and Repair Manuals by Search"
+sidebarTitle: "Find a Vehicle"
+description: "Use search_vehicles and list_makes to locate the right repair manual for any car make, model, engine, and year in the LEMON and CHARM archives."
+---
+
+Searching for a vehicle is the first step in any manual lookup. The LEMON and CHARM archives cover roughly 305,000 vehicles from 1960–2025. Two tools help you navigate them: `list_makes` gives you a full catalogue of every supported manufacturer, and `search_vehicles` lets you find a specific drivetrain by typing whatever combination of make, model, year, and engine you already know.
+
+## List All Makes
+
+Call `list_makes` with no arguments to retrieve every car manufacturer in the combined LEMON and CHARM databases. Each entry in the response tells you how many vehicles that make covers, which years are represented, and which database(s) include it.
+
+**Request**
+
+```json
+{
+  "name": "list_makes",
+  "arguments": {}
+}
+```
+
+**Response (excerpt)**
+
+```json
+[
+ {
+  "make": "Acura",
+  "vehicleCount": 312,
+  "minYear": 1986,
+  "maxYear": 2022,
+  "databases": ["lemon", "charm"]
+ },
+ {
+  "make": "Volkswagen",
+  "vehicleCount": 1847,
+  "minYear": 1970,
+  "maxYear": 2024,
+  "databases": ["lemon", "charm"]
+ }
+]
+```
+
+| Field | Description |
+|---|---|
+| `make` | Manufacturer name as it appears in the index |
+| `vehicleCount` | Total number of individual vehicle entries for this make |
+| `minYear` / `maxYear` | Earliest and latest model years covered |
+| `databases` | Which archives include this make (`lemon`, `charm`, or both) |
+
+Use `list_makes` when you want to confirm a manufacturer is covered before running a search, or when you need to see the exact spelling the index uses for a make name.
+
+## Search for a Vehicle
+
+`search_vehicles` accepts a free-text query and matches it against make, model, engine, and year fields. Every word in your query must appear somewhere in a vehicle's record — the search is order-independent and case-insensitive.
+
+**Request**
+
+```json
+{
+  "name": "search_vehicles",
+  "arguments": {
+    "query": "2019 civic",
+    "limit": 5
+  }
+}
+```
+
+The `limit` parameter defaults to 20 and accepts values from 1 to 100.
+
+### Example queries
+
+| Query | What it matches |
+|---|---|
+| `"2019 civic"` | Make + model — all Civic drivetrains for model year 2019 |
+| `"miata 1994"` | Model + year — 1994 Mazda MX-5 Miata entries |
+| `"f-150 5.0L 2021"` | Model + engine displacement + year |
+| `"Volkswagen Touareg V8"` | Make + model + engine variant |
+
+### Sample result
+
+```json
+[
+ {
+  "make": "Volkswagen",
+  "model": "Touareg (7LA) V8-4.2L (BHX)",
+  "years": ["2004", "2005", "2006"],
+  "engine": "V8-4.2L (BHX)",
+  "uriPath": "/Volkswagen/2005/Touareg%20%287LA%29%20V8-4.2L%20%28BHX%29/",
+  "isComplete": true,
+  "database": "charm",
+  "variants": ["V8-4.2L (BHX)", "V8 4.2 M"],
+  "databases": ["charm", "lemon"],
+  "manuals": [
+   {
+    "database": "charm",
+    "engine": "V8-4.2L (BHX)",
+    "uriPath": "/Volkswagen/2005/Touareg%20%287LA%29%20V8-4.2L%20%28BHX%29/"
+   },
+   {
+    "database": "lemon",
+    "engine": "V8 4.2 M",
+    "uriPath": "/Volkswagen/2005/Touareg%20V8-4.2/"
+   }
+  ]
+ }
+]
+```
+
+## Understanding Search Results
+
+Each result represents one **physical drivetrain** — the server groups equivalent entries from LEMON and CHARM together so you don't see the same engine twice. When CHARM has a record for the same drivetrain it is used as the primary `uriPath` because its manual tree is more complete.
+
+<CardGroup cols={2}>
+  <Card title="uriPath" icon="key">
+    An opaque encoded path that identifies this vehicle's manual root. Pass it directly to `get_page` or `search_manual`. Never decode or reconstruct it.
+  </Card>
+  <Card title="variants" icon="list">
+    All engine or trim labels grouped under this drivetrain. Useful to confirm you have the right vehicle when names differ between databases.
+  </Card>
+  <Card title="databases" icon="database">
+    Which archives — `lemon`, `charm`, or both — cover this drivetrain.
+  </Card>
+  <Card title="manuals" icon="book">
+    Every individual manual entry in the group. Each entry carries its own `database`, `engine` label, and `uriPath` so you can access the LEMON or CHARM version specifically.
+  </Card>
+</CardGroup>
+
+### Result fields reference
+
+| Field | Type | Description |
+|---|---|---|
+| `make` | string | Manufacturer name |
+| `model` | string | Model name including body code and engine, from the primary database |
+| `years` | string[] | Model years this manual entry covers |
+| `engine` | string \| null | Engine designation from the primary database |
+| `uriPath` | string | Opaque vehicle root path — pass to `get_page` or `search_manual` |
+| `isComplete` | boolean | Whether this manual entry has a full repair tree |
+| `database` | string | Primary database (`lemon` or `charm`) |
+| `variants` | string[] | All engine/trim labels across grouped manuals |
+| `databases` | string[] | All databases that cover this drivetrain |
+| `manuals` | ManualRef[] | Trimmed list of every source manual with `database`, `engine`, and `uriPath` |
+
+## Tips for Better Results
+
+- **Every word must match.** The search requires all query tokens to appear in the vehicle record. Use fewer words if you get no results.
+- **Try dropping the trim level or engine spec.** Searching `"f-150 2021"` will match more results than `"f-150 5.0L Lariat 2021"`.
+- **Search is order-independent.** `"civic 2019"` and `"2019 civic"` return identical results.
+- **Year tokens match any year in the range.** A manual that covers 2004–2006 will match the token `"2005"`.
+- **Spelling variations matter.** The index normalizes text, but manufacturer names and model codes must still be recognizable. Check `list_makes` if a make returns nothing.
+
+<Tip>
+  If you get no results, drop tokens one at a time. Try `"2019 f-150"` before `"2019 f-150 5.0L Lariat"` — the more specific your query, the more tokens must all match simultaneously.
+</Tip>

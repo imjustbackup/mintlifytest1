@@ -1,72 +1,75 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "LEMON Manuals MCP",
+  "theme": "luma",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#E8531F",
+    "light": "#F5A27A",
+    "dark": "#B33A0F"
   },
   "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/imjustbackup/lemon-manuals-mcp"
+    }
+  },
   "navigation": {
-    "pages": [
+    "tabs": [
       {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "configuration"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/databases",
+              "concepts/opaque-paths",
+              "concepts/search-index"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/finding-a-vehicle",
+              "guides/reading-a-manual",
+              "guides/searching-manual-content",
+              "guides/working-with-images"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/setup",
+              "deployment/prebuilding-the-index",
+              "deployment/docker"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Tools Reference",
+        "groups": [
+          {
+            "group": "MCP Tools",
+            "pages": [
+              "tools/overview",
+              "tools/list-makes",
+              "tools/search-vehicles",
+              "tools/get-page",
+              "tools/search-manual",
+              "tools/get-image"
+            ]
+          }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
     ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
   }
 }

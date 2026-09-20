@@ -1,0 +1,158 @@
+---
+title: "Browse and Read Repair Manual Pages"
+sidebarTitle: "Read a Manual"
+description: "Navigate a vehicle's repair manual directory tree with get_page, control content depth and response size, and follow links to specific repair procedures."
+---
+
+After finding a vehicle with `search_vehicles`, use `get_page` to browse its repair manual. The tool accepts the opaque `uriPath` from your search result and returns the page content as normalized markdown — either a directory listing you can navigate deeper, or a leaf page containing a full repair procedure.
+
+## Starting from a Vehicle Root
+
+Pass the `uriPath` from a `search_vehicles` result directly to `get_page`. The vehicle root is a directory page that shows the top-level manual structure. You will typically see two main sections:
+
+- **Repair and Diagnosis/** — the full manual tree: procedures, specs, wiring diagrams, component tests
+- **Parts and Labor/** — parts catalogues and labor time estimates
+
+**Request**
+
+```json
+{
+  "name": "get_page",
+  "arguments": {
+    "path": "/Volkswagen/2005/Touareg%20%287LA%29%20V8-4.2L%20%28BHX%29/",
+    "depth": 1,
+    "max_bytes": 40000
+  }
+}
+```
+
+**Response (excerpt)**
+
+```markdown
+*   [Repair and Diagnosis](<...>) (12 children)
+*   [Parts and Labor](<...>) (3 children)
+```
+
+The child counts in parentheses tell you how many items are nested under each section, so you can decide how deep to expand before making another call.
+
+## The Directory Tree
+
+The `depth` parameter controls how many levels of the directory tree are expanded in a single response. It defaults to `1`, which shows immediate children only.
+
+<Steps>
+  <Step title="depth=1 (default)">
+    Returns the immediate children of the requested path. Each directory entry shows its child count so you can gauge what is inside before fetching deeper.
+
+    ```markdown
+    *   [Repair and Diagnosis](<.../Repair%20and%20Diagnosis/>) (12 children)
+        *   [Brake System](<.../Brake%20System/>) (8 children)
+        *   [Engine](<.../Engine/>) (24 children)
+        *   [Transmission](<.../Transmission/>) (11 children)
+    ```
+  </Step>
+  <Step title="depth=2">
+    Expands one more level in the same call, showing grandchildren alongside their own child counts. Useful when you know the general area you want.
+
+    ```markdown
+    *   [Repair and Diagnosis](<.../Repair%20and%20Diagnosis/>) (12 children)
+        *   [Brake System](<.../Brake%20System/>) (8 children)
+            *   [Brake Fluid](<.../Brake%20Fluid/>) (2 children)
+            *   [Front Brakes](<.../Front%20Brakes/>) (5 children)
+            *   [Rear Brakes](<.../Rear%20Brakes/>) (4 children)
+        *   [Engine](<.../Engine/>) (24 children)
+            *   [Oil and Filter](<.../Oil%20and%20Filter/>) (3 children)
+            *   [Timing Chain](<.../Timing%20Chain/>) (6 children)
+    ```
+  </Step>
+  <Step title="depth=3+">
+    Continues expanding levels recursively. Large manuals can return substantial output at higher depths — use `max_bytes` to cap the response size.
+  </Step>
+</Steps>
+
+## Reading a Manual Page
+
+Leaf pages — the actual repair procedures at the end of each branch — contain the full procedure content rendered as markdown. A typical leaf page includes:
+
+- **ATX headings** (`##`, `###`) for section structure
+- **Specification tables** with torque values, clearances, and fluid capacities
+- **Numbered steps** for removal and installation procedures
+- **Notes and cautions** formatted as inline paragraphs
+- **Cross-references** to related procedures, resolved to their plain text labels
+- **Image links** for wiring diagrams, exploded views, and component photos
+
+**Example leaf page snippet**
+
+```markdown
+## Brake Caliper — Removal and Installation
+
+### Special Tools Required
+
+| Tool | Description |
+|---|---|
+| T10011 | Brake piston retraction tool |
+
+### Removal
+
+1.  Raise the vehicle and remove the wheel.
+2.  Disconnect the brake hose at the caliper bracket. Plug the hose
+    immediately to prevent fluid loss.
+3.  Remove the two caliper guide pin bolts (9 Nm).
+4.  Lift the caliper off the rotor and suspend it with wire — do not
+    let it hang from the brake hose.
+
+### Installation
+
+Install in reverse order. Torque guide pin bolts to **9 Nm**.
+Bleed the brake system before driving.
+
+![Caliper guide pin bolt locations](<...image-path...>)
+```
+
+<Note>
+  Links within returned markdown are opaque paths you can pass directly back to `get_page` (for manual pages) or `get_image` (for image paths). Never decode or reconstruct them.
+</Note>
+
+## Controlling Response Size
+
+The `max_bytes` parameter caps the UTF-8 byte length of the returned markdown. It defaults to `40000` (40 KB). Use it when you are fetching a very long page or a high-depth directory tree that would otherwise overflow your context window.
+
+When the content exceeds `max_bytes`, the response is cut cleanly at a UTF-8 character boundary and a truncation marker is appended:
+
+```
+[truncated — refetch with higher max_bytes or narrower depth]
+```
+
+To see the full page, re-fetch with a larger `max_bytes` value:
+
+```json
+{
+  "name": "get_page",
+  "arguments": {
+    "path": "...",
+    "depth": 2,
+    "max_bytes": 120000
+  }
+}
+```
+
+Alternatively, narrow the `depth` to reduce output volume before increasing the byte limit.
+
+## Stub Page Resolution
+
+Some pages in the manual are thin "stub" pages — publisher placeholders that contain a single link pointing to the real content. When `get_page` encounters a stub (a page under 300 characters with exactly one link), it automatically fetches and returns the target page instead.
+
+The response includes a short header indicating the resolution happened:
+
+```markdown
+## Stub page
+
+[Original stub content and link]
+
+---
+
+## Stub page → resolved target: `<target-path>`
+
+[Full content of the real target page]
+```
+
+You do not need to detect or handle stubs yourself — `get_page` resolves them transparently. The target path in the header is also an opaque token you can pass back to `get_page` directly.

@@ -1,0 +1,53 @@
+---
+title: "Full-Text Search Index for Repair Manuals"
+sidebarTitle: "Search Index"
+description: "How the LEMON Manuals MCP full-text search index works, including lazy indexing on first use, search modes, and pre-building the index for production."
+---
+
+The server maintains a persistent SQLite FTS5 index for searching within vehicle manuals. Rather than scanning raw HTML on every query, `search_manual` builds and reuses a structured index of page titles, breadcrumbs, and body text. This makes repeated searches fast, but the first search for a vehicle that has not been indexed yet requires the server to build that index on demand.
+
+## How Indexing Works
+
+Indexing for each vehicle happens in two sequential phases:
+
+<Steps>
+  <Step title="Title indexing">
+    When you call `search_manual` for a vehicle for the first time, the server walks the entire `Repair and Diagnosis/` tree for that vehicle and stores every page title and breadcrumb path in the index. This phase is relatively fast — typically a few seconds — because it only reads the navigation tree, not the body of each page.
+
+    Once title indexing completes, subsequent `title`-mode searches are served entirely from the index without re-fetching the tree.
+  </Step>
+  <Step title="Body indexing">
+    For `body` and `both` search modes, the server fetches and indexes the content of every page in the manual. This can be slow for large manuals on first use because each page requires a separate fetch and conversion to plain text. Once body indexing completes for a vehicle, the full index is persisted and all future searches for that vehicle are fast.
+  </Step>
+</Steps>
+
+Both phases are **persisted** to `data/manual-search.sqlite` (configurable via the `LEMON_SEARCH_DB` environment variable). The index survives server restarts, so you only pay the first-use cost once per vehicle.
+
+## Search Modes
+
+`search_manual` supports three modes, controlled by the `mode` parameter:
+
+| Mode | What it searches | Body fetch required |
+|------|-----------------|-------------------|
+| `both` (default) | Titles and body text together | Yes, on first use |
+| `title` | Page titles and breadcrumbs only | Only for matching pages |
+| `body` | Body text only | Yes, on first use |
+
+Use `title` mode when you want fast, broad navigation — for example, finding the "Fuel Injector" section heading before reading its content. Use `body` or `both` when you need to find procedures or specifications mentioned within page content rather than just in headings.
+
+## Search Behavior
+
+Understanding how `search_manual` scores and filters results helps you write effective queries:
+
+- **All query tokens must match (AND logic).** Every word in your query must appear somewhere on a matching page. If a search returns no results, try dropping one or more words to broaden the query.
+- **Results are deduplicated by content.** When the same text appears at multiple locations in the manual tree — for example, a shared procedure linked from several sections — the index returns it once. The `also_under` field lists the additional breadcrumb paths where the same content appears.
+- **Applicability labels are parsed when present.** Some pages carry publisher labels like "From MY 2007" or "Through 11.06" that indicate which model years a procedure applies to. The index parses these into `from` and `through` year fields on each result.
+- **`applicable_only=true` filters by model year.** Set this parameter to `true` to drop results whose parsed applicability range excludes the vehicle's model year. Results without any applicability label are always included.
+
+## First-Use Latency
+
+<Note>
+  The first `search_manual` call for a vehicle that has not been indexed yet may take a noticeable amount of time — anywhere from a few seconds for `title` mode to several minutes for a large manual in `body` or `both` mode. Subsequent searches for the same vehicle are fast because the index is already built and persisted.
+
+  For production deployments, pre-build the index ahead of time to avoid this latency for your users. See [Pre-building the Index](/deployment/prebuilding-the-index) for instructions.
+</Note>

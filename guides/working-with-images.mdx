@@ -1,0 +1,120 @@
+---
+title: "View Diagrams and Images from Repair Manuals"
+sidebarTitle: "Images"
+description: "Use get_image to retrieve wiring diagrams, component photos, and technical illustrations from repair manual pages as MCP image blocks."
+---
+
+Repair manuals contain wiring diagrams, exploded-view illustrations, torque specification charts, and component photos that are essential for many procedures. The `get_image` tool retrieves these assets from the archive and returns them as MCP image blocks, which your AI client renders inline alongside the text.
+
+## Finding Image Paths
+
+When you call `get_page` on a manual page that contains images, the returned markdown includes image references using standard markdown image syntax. The path inside the angle brackets is an opaque encoded token that points directly to the image asset.
+
+**Example markdown returned by get_page**
+
+```markdown
+## Steering Column — Component Overview
+
+The J518 access and start authorization module mounts to the lower
+steering column housing. Refer to the diagram below before removal.
+
+![J518 module mounting points](<\/images\/IMP66Q313\/euro600\/891404313\/>)
+
+Torque the three M6 fasteners to **9 Nm** in the sequence shown.
+```
+
+Collect the path from inside the `<...>` delimiters — in this case `/images/IMP66Q313/euro600/891404313/` — and pass it to `get_image`.
+
+## Using get_image
+
+`get_image` accepts one argument: the opaque image path exactly as returned by `get_page`. It fetches the image, validates it, and returns an MCP image block containing the base64-encoded image data and its MIME type. Your AI client renders the image inline.
+
+**Request**
+
+```json
+{
+  "name": "get_image",
+  "arguments": {
+    "path": "/images/IMP66Q313/euro600/891404313/"
+  }
+}
+```
+
+**Response**
+
+```json
+{
+  "content": [
+    {
+      "type": "image",
+      "data": "<base64-encoded image data>",
+      "mimeType": "image/png"
+    }
+  ]
+}
+```
+
+The `data` field is a standard base64 string. The `mimeType` field tells the client how to decode and render it. No additional processing is needed on your end — pass the path and use the result.
+
+<Steps>
+  <Step title="Fetch the manual page">
+    Call `get_page` with the procedure path. The returned markdown will contain image references if the page has any diagrams or photos.
+  </Step>
+  <Step title="Extract the image path">
+    Find `![alt text](<path>)` patterns in the markdown. Copy the path from inside the angle brackets exactly as it appears — this is the opaque image token.
+  </Step>
+  <Step title="Call get_image">
+    Pass the extracted path to `get_image`. The server validates the image and returns an MCP image block for your client to render.
+  </Step>
+</Steps>
+
+## Supported Formats
+
+The server validates the image payload against its declared content type before returning it. Supported formats are:
+
+<CardGroup cols={4}>
+  <Card title="JPEG" icon="image" />
+  <Card title="PNG" icon="image" />
+  <Card title="GIF" icon="image" />
+  <Card title="WebP" icon="image" />
+  <Card title="BMP" icon="image" />
+  <Card title="TIFF" icon="image" />
+  <Card title="SVG" icon="code" />
+</CardGroup>
+
+The server checks that the image byte signature matches the declared MIME type and, for JPEG and PNG, that the reported pixel dimensions are valid. Any payload that fails these checks is rejected with an explicit error rather than silently passed through.
+
+## Size Limits
+
+The server enforces a **2 MB maximum** on all images. Images over this limit are rejected explicitly with a clear error message — they are never truncated or partially returned.
+
+If you receive a size-limit error, the image is simply too large to transfer through the MCP transport. This is uncommon; most manual diagrams are well under the limit. If you encounter it, note that the error text includes the actual byte count so you know exactly how large the image is.
+
+## Image-Only Pages
+
+Some manual pages consist entirely of diagrams with no prose text. These pages are identified in `search_manual` results by the `image_only` field.
+
+When `image_only` is `true`, the `snippet` field reads `[image only — N images]` where N is the number of images on that page. To view the content, fetch the page with `get_page` and then call `get_image` for each image path in the returned markdown.
+
+**Example search result for an image-only page**
+
+```json
+{
+  "title": "Wiring Diagram — J518 Access and Start Authorization",
+  "path": "/Volkswagen/2005/Touareg%20.../J518%20Wiring/",
+  "breadcrumb": ["Repair and Diagnosis", "Electrical", "J518 Wiring"],
+  "snippet": "[image only — 3 images]",
+  "also_under": [],
+  "image_only": true
+}
+```
+
+Fetch the page, collect the three image paths from the markdown, and call `get_image` for each one.
+
+<Note>
+  Always use image paths exactly as returned by `get_page`. The paths are opaque encoded tokens — never decode, modify, or reconstruct them. A manually altered path will either point to a different image or return an error.
+</Note>
+
+<Warning>
+  Images over 2 MB are rejected with an explicit error. The server never returns a partial or truncated image. If you receive a size error, the full image is unavailable through this transport.
+</Warning>

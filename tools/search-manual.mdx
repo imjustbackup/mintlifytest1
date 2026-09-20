@@ -1,0 +1,132 @@
+---
+title: "search_manual: Full-Text Search in a Vehicle Manual"
+sidebarTitle: "search_manual"
+description: "search_manual runs keyword full-text search over a vehicle's repair manual titles and body text, with configurable mode, deduplication, and applicability filtering."
+---
+
+`search_manual` lets you keyword-search a specific vehicle's repair manual to quickly find relevant pages without browsing the entire directory tree. It maintains a persistent full-text index per vehicle, searches across page titles and body text, deduplicates results by content, and surfaces applicability labels when the publisher includes them.
+
+## Parameters
+
+<ParamField query="path" type="string" required>
+  Opaque vehicle root `uriPath` from `search_vehicles`. This must be a vehicle root path, not a page path from inside a manual. Pass it exactly as returned — never decode or reconstruct it.
+</ParamField>
+
+<ParamField query="query" type="string" required>
+  Keywords to search for. All tokens must match (AND logic) — a page missing any single token is excluded. Minimum one character. Drop tokens to broaden a search that returns no results.
+</ParamField>
+
+<ParamField query="mode" type="string" default="both">
+  Controls which fields are searched. One of `"title"`, `"body"`, or `"both"`. See [Search Modes](#search-modes) below.
+</ParamField>
+
+<ParamField query="limit" type="integer" default="20">
+  Maximum number of results to return. Minimum `1`, maximum `100`.
+</ParamField>
+
+<ParamField query="applicable_only" type="boolean" default="false">
+  When `true`, omit results whose `applicability.appliesToVehicleYear` is `false`. Useful when a manual covers a range of model years and you only want pages that apply to the specific vehicle year in the path.
+</ParamField>
+
+## Search Modes
+
+<ResponseField name="both" type="default">
+  Searches page titles, breadcrumbs, and full body text. This is the default and gives the broadest coverage.
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Searches page titles and breadcrumbs only. This mode is faster on first use because it only fetches body text for pages that match by title, rather than ingesting the entire manual. Use it for quick topic discovery.
+</ResponseField>
+
+<ResponseField name="body" type="string">
+  Searches full body text only. Requires the full body index to be built, which can be slow the first time a manual is searched. Use it when a topic name does not appear in page titles.
+</ResponseField>
+
+## Response
+
+The tool returns a JSON array of search result objects, deduplicated by document content. Pages that appear in multiple locations in the manual tree are represented once, with additional placements listed in `also_under`.
+
+<ResponseField name="title" type="string">
+  The page heading as it appears in the manual.
+</ResponseField>
+
+<ResponseField name="path" type="string">
+  Opaque page path. Pass this directly to `get_page` to read the full page content.
+</ResponseField>
+
+<ResponseField name="breadcrumb" type="array of string">
+  The navigation path within the manual tree, from the top-level section down to this page (e.g. `["Brakes", "Hydraulic Brakes", "Brake Fluid"]`).
+</ResponseField>
+
+<ResponseField name="also_under" type="array of array of string">
+  Other locations in the manual tree that contain identical content. Each entry is a breadcrumb array. Empty when the page appears only once.
+</ResponseField>
+
+<ResponseField name="snippet" type="string">
+  Up to 205 characters of body prose from the page. When the page contains images but no body text, the value is `"[image only — N images]"` instead.
+</ResponseField>
+
+<ResponseField name="image_only" type="boolean">
+  `true` when the page has images but no body text. These pages typically contain wiring diagrams or component illustrations — use `get_page` and then `get_image` to retrieve them.
+</ResponseField>
+
+<ResponseField name="applicability" type="object">
+  Present when the publisher labels the page with a model year applicability range. Omitted when no applicability information is available.
+
+  <Expandable title="applicability fields">
+    <ResponseField name="from" type="string">
+      Start of the applicable range, when specified (e.g. `"2007"` or `"2007-09"`).
+    </ResponseField>
+    <ResponseField name="through" type="string">
+      End of the applicable range, when specified (e.g. `"2011"` or `"2011-06"`).
+    </ResponseField>
+    <ResponseField name="appliesToVehicleYear" type="boolean | null">
+      Whether this page applies to the vehicle year encoded in the root path. `true` if it applies, `false` if it does not, `null` if the year cannot be determined with confidence (for example, when the boundary falls within the same model year as a month-level cutoff).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+**Vehicle root path:** `/Volkswagen/2005/Touareg%20%287LA%29%20V8-4.2L%20%28BHX%29/`
+
+**Query:** `"brake fluid"`
+
+```json
+[
+  {
+    "title": "Brake Fluid",
+    "path": "/Volkswagen/2005/Touareg%20%287LA%29%20V8-4.2L%20%28BHX%29/Repair%20and%20Diagnosis/Brakes/Hydraulic%20Brakes/Brake%20Fluid/",
+    "breadcrumb": ["Brakes", "Hydraulic Brakes", "Brake Fluid"],
+    "also_under": [],
+    "snippet": "The brake fluid specification is DOT 4. Check the fluid level in the reservoir and top up as necessary. Replace brake fluid every two years regardless of mileage.",
+    "image_only": false
+  },
+  {
+    "title": "Bleeding Brakes",
+    "path": "/Volkswagen/2005/Touareg%20%287LA%29%20V8-4.2L%20%28BHX%29/Repair%20and%20Diagnosis/Brakes/Hydraulic%20Brakes/Bleeding%20Brakes/",
+    "breadcrumb": ["Brakes", "Hydraulic Brakes", "Bleeding Brakes"],
+    "also_under": [
+      ["Brakes", "Anti-Lock Brakes", "Bleeding Brakes"]
+    ],
+    "snippet": "Bleed the brake system whenever brake fluid has been lost due to a leak, or after any hydraulic component has been replaced or disconnected.",
+    "image_only": false,
+    "applicability": {
+      "from": "2004",
+      "through": "2007",
+      "appliesToVehicleYear": true
+    }
+  }
+]
+```
+
+## Tips
+
+- **Drop tokens to broaden.** `"brake"` returns more results than `"brake fluid flush procedure"`. Every token must match, so the more specific your query, the fewer pages qualify.
+- **Use `title` mode for fast discovery.** When you want to quickly find which sections cover a topic, `mode: "title"` is faster because it searches titles first and only fetches body text for matching pages.
+- **Use `applicable_only: true` for multi-year manuals.** Many manuals cover a range of years. Setting `applicable_only: true` filters out pages explicitly labeled as not applying to the vehicle's model year, keeping results relevant.
+- **Follow `path` values with `get_page`.** Each result's `path` is an opaque token ready to pass to `get_page` for the full procedure text and any embedded diagrams.
+
+<Tip>
+  The first search on a manual that has not been indexed yet triggers an automatic index build. Subsequent searches on the same manual are fast. `mode: "title"` builds only the title index; `mode: "body"` or `mode: "both"` builds the full body index, which may take longer on first use.
+</Tip>

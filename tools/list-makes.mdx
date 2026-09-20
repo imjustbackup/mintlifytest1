@@ -1,0 +1,80 @@
+---
+title: "list_makes: Browse All Car Makes"
+sidebarTitle: "list_makes"
+description: "The list_makes tool returns every car make in the LEMON and CHARM archives with vehicle counts, year ranges, and which databases cover each make."
+---
+
+`list_makes` returns a summary of every car make available across the LEMON and CHARM repair manual archives. Use it to discover which manufacturers are covered before running `search_vehicles`, or to give users a browsable list of available brands.
+
+## Parameters
+
+This tool takes no parameters.
+
+## Response
+
+The tool returns a JSON array of make summary objects, one per manufacturer, sorted alphabetically by make name.
+
+<ResponseField name="make" type="string">
+  The car manufacturer name (e.g. `"Honda"`, `"Volkswagen"`).
+</ResponseField>
+
+<ResponseField name="vehicleCount" type="integer">
+  Total number of individual vehicle entries from this make across both archives.
+</ResponseField>
+
+<ResponseField name="minYear" type="integer">
+  The earliest model year covered for this make.
+</ResponseField>
+
+<ResponseField name="maxYear" type="integer">
+  The latest model year covered for this make.
+</ResponseField>
+
+<ResponseField name="databases" type="array of string">
+  Which archives include this make. Possible values are `"lemon"`, `"charm"`, or both.
+</ResponseField>
+
+## Example Response
+
+```json
+[
+  {
+    "make": "Acura",
+    "vehicleCount": 847,
+    "minYear": 1986,
+    "maxYear": 2025,
+    "databases": ["lemon", "charm"]
+  },
+  {
+    "make": "BMW",
+    "vehicleCount": 1203,
+    "minYear": 1960,
+    "maxYear": 2025,
+    "databases": ["lemon", "charm"]
+  },
+  {
+    "make": "Honda",
+    "vehicleCount": 2341,
+    "minYear": 1973,
+    "maxYear": 2025,
+    "databases": ["lemon", "charm"]
+  },
+  {
+    "make": "Volkswagen",
+    "vehicleCount": 1876,
+    "minYear": 1970,
+    "maxYear": 2025,
+    "databases": ["lemon", "charm"]
+  }
+]
+```
+
+## Use Case
+
+Call `list_makes` when:
+
+- A user wants to know which car brands the archive covers.
+- You need to confirm a manufacturer name before constructing a `search_vehicles` query (spelling must match the archive's canonical name).
+- You want to show a user which databases cover a particular brand before they dig deeper.
+
+After identifying a make from the results, pass it as part of the `query` to `search_vehicles` to find specific models and obtain manual paths.

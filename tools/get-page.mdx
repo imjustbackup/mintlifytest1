@@ -1,0 +1,63 @@
+---
+title: "get_page: Fetch Manual Pages as Markdown"
+sidebarTitle: "get_page"
+description: "get_page fetches any repair manual page or directory listing by opaque path and returns clean Markdown with navigable links and image references."
+---
+
+`get_page` is your main tool for reading manual content. It fetches a manual page or directory listing by opaque path and converts it to clean Markdown — resolving all relative links to opaque paths you can pass back to `get_page` or `get_image`. Start from a `uriPath` returned by `search_vehicles` and navigate deeper by following the links in each response.
+
+## Parameters
+
+<ParamField query="path" type="string" required>
+  Opaque encoded site path from `search_vehicles` or a previous `get_page` response. Pass it exactly as returned. Never decode, modify, or reconstruct this value.
+</ParamField>
+
+<ParamField query="depth" type="integer" default="1">
+  Directory-tree levels to expand when the page is a directory listing. `depth=1` (the default) shows immediate children with their child counts. Higher values expand the tree further. Minimum value is `1`.
+</ParamField>
+
+<ParamField query="max_bytes" type="integer" default="40000">
+  Maximum UTF-8 bytes to return before truncating. The minimum allowed value is approximately 70 bytes (enough for the truncation marker itself). Increase this value if you need the full content of a long page.
+</ParamField>
+
+## Response
+
+The tool returns the page content as a Markdown string. The structure of the content depends on what the path points to:
+
+- **Directory page:** A nested list of links to sub-sections and leaf pages. Each link includes a child count so you can tell at a glance whether it expands further. Use these links to navigate deeper.
+- **Repair procedure page:** Full Markdown with headings, specification tables, step-by-step procedures, cross-references, and embedded image references in standard Markdown image syntax.
+- **Stub page:** A publisher redirect page with a single link. `get_page` automatically resolves the stub and returns the target page content, prefixed with a stub header for transparency.
+
+## Truncation
+
+When the page content exceeds `max_bytes`, the response ends with the truncation marker:
+
+```
+[truncated — refetch with higher max_bytes or narrower depth]
+```
+
+If you see this marker, re-fetch the same path with a larger `max_bytes` value to retrieve the full content. You can also narrow `depth` on directory pages to reduce output size.
+
+## Image Paths
+
+Images embedded in the returned Markdown appear as standard Markdown image references with opaque paths:
+
+```
+![alt text](<opaque-image-path>)
+```
+
+Pass the opaque image path directly to `get_image` to retrieve the image as an MCP image block.
+
+## Directory Navigation Pattern
+
+A typical browsing session follows this pattern:
+
+1. **Start at the vehicle root.** Pass the `uriPath` from `search_vehicles` to `get_page`. The response lists top-level sections such as `Repair and Diagnosis/` and `Parts and Labor/`.
+2. **Navigate to the repair tree.** Follow the `Repair and Diagnosis/` link by passing its opaque path to another `get_page` call. This shows the main repair topic tree.
+3. **Drill into a topic.** Follow any section link (e.g. `Brakes/`, `Engine/`) to see its sub-sections and leaf pages.
+4. **Read a procedure page.** Follow a leaf link to get the full repair procedure, including specifications, torque values, and diagrams.
+5. **Fetch a diagram.** Pass any `![alt](<path>)` image path from a procedure page to `get_image`.
+
+<Note>
+  Every link in the returned Markdown is already normalized to an opaque path. Pass links directly back to `get_page` or `get_image` without any modification.
+</Note>
