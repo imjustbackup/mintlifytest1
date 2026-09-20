@@ -1,7 +1,7 @@
 ---
 title: "search_manual: Full-Text Search in a Vehicle Manual"
 sidebarTitle: "search_manual"
-description: "search_manual runs keyword full-text search over a vehicle's repair manual titles and body text, with configurable mode, deduplication, and applicability filtering."
+description: "search_manual keyword-searches a vehicle repair manual with configurable title/body mode, deduplication by content, and optional applicability filtering."
 ---
 
 `search_manual` lets you keyword-search a specific vehicle's repair manual to quickly find relevant pages without browsing the entire directory tree. It maintains a persistent full-text index per vehicle, searches across page titles and body text, deduplicates results by content, and surfaces applicability labels when the publisher includes them.
@@ -74,11 +74,11 @@ The tool returns a JSON array of search result objects, deduplicated by document
   Present when the publisher labels the page with a model year applicability range. Omitted when no applicability information is available.
 
   <Expandable title="applicability fields">
-    <ResponseField name="from" type="string">
-      Start of the applicable range, when specified (e.g. `"2007"` or `"2007-09"`).
+    <ResponseField name="from" type="string | undefined">
+      Start of the applicable range, when present (e.g. `"2007"` or `"2007-09"`). Omitted when the publisher did not specify a start boundary.
     </ResponseField>
-    <ResponseField name="through" type="string">
-      End of the applicable range, when specified (e.g. `"2011"` or `"2011-06"`).
+    <ResponseField name="through" type="string | undefined">
+      End of the applicable range, when present (e.g. `"2011"` or `"2011-06"`). Omitted when the publisher did not specify an end boundary.
     </ResponseField>
     <ResponseField name="appliesToVehicleYear" type="boolean | null">
       Whether this page applies to the vehicle year encoded in the root path. `true` if it applies, `false` if it does not, `null` if the year cannot be determined with confidence (for example, when the boundary falls within the same model year as a month-level cutoff).

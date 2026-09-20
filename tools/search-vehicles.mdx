@@ -1,5 +1,5 @@
 ---
-title: "search_vehicles: Find Vehicles and Manual Paths"
+title: "search_vehicles: Find Vehicles and Get Manual Paths"
 sidebarTitle: "search_vehicles"
 description: "search_vehicles finds vehicles by free-text query across make, model, engine, and year, returning grouped drivetrain results with manual uriPath tokens."
 ---
@@ -107,5 +107,5 @@ The tool returns a JSON array of vehicle search result objects. Results are dedu
 - **The `manuals` array lists every source.** When LEMON and CHARM both cover the vehicle, both paths appear here — you can browse either one.
 
 <Warning>
-  If the query returns "No vehicles matched", try fewer or different words (for example, drop the trim level or engine displacement). The search requires every token to match, so one unrecognized word excludes all results.
+  When no results are found, the server returns: **"No vehicles matched. Try fewer or different words (e.g. drop trim level)."** The search requires every token to match, so one unrecognized word excludes all results. Try dropping the trim level, engine displacement, or other qualifiers.
 </Warning>

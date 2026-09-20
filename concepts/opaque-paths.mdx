@@ -1,5 +1,5 @@
 ---
-title: "Opaque Paths: How Navigation Works"
+title: "Opaque Path Tokens: Navigating the MCP Manual Server"
 sidebarTitle: "Opaque Paths"
 description: "Learn how LEMON Manuals MCP uses opaque encoded path tokens for safe navigation between vehicle search results, manual pages, and images."
 ---
@@ -8,13 +8,9 @@ Every path returned by any tool in the LEMON Manuals MCP server is an opaque enc
 
 ## What Is an Opaque Path?
 
-An opaque path is a URL-encoded site path that uniquely identifies a resource on the manual server. For example, a vehicle root might look like:
+An opaque path is a URL-encoded site path that uniquely identifies a resource on the manual server. A vehicle root path typically contains percent-encoded characters representing spaces, parentheses, and other punctuation — for example, `%20` for a space or `%28` for an opening parenthesis. These characters are encoded as part of the path itself, not as URL separators.
 
-```
-/Volkswagen/2005/Touareg%20%287LA%29%20V8-4.2L%20%28BHX%29/
-```
-
-The encoding is intentional. Special characters like spaces, parentheses, and slashes are percent-encoded as part of the path itself, not as URL separators. If you decode, modify, or reconstruct a path, you break the encoding and the server will not recognize it.
+The encoding is intentional. If you decode, modify, or reconstruct a path, you break the encoding and the server will not recognize it.
 
 **Treat every opaque path as an atomic string.** Read it, store it if needed, and pass it back to a tool exactly as you received it — nothing more.
 

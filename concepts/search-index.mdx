@@ -1,5 +1,5 @@
 ---
-title: "Full-Text Search Index for Repair Manuals"
+title: "Full-Text Search Index: Modes, Latency, and Behavior"
 sidebarTitle: "Search Index"
 description: "How the LEMON Manuals MCP full-text search index works, including lazy indexing on first use, search modes, and pre-building the index for production."
 ---
@@ -41,6 +41,7 @@ Understanding how `search_manual` scores and filters results helps you write eff
 
 - **All query tokens must match (AND logic).** Every word in your query must appear somewhere on a matching page. If a search returns no results, try dropping one or more words to broaden the query.
 - **Results are deduplicated by content.** When the same text appears at multiple locations in the manual tree — for example, a shared procedure linked from several sections — the index returns it once. The `also_under` field lists the additional breadcrumb paths where the same content appears.
+- **Snippets are capped at 205 characters.** The `snippet` field in each result contains up to 205 Unicode characters of body prose, trimmed from the beginning of the page text. Pages that contain only images return `[image only — N images]` instead of prose.
 - **Applicability labels are parsed when present.** Some pages carry publisher labels like "From MY 2007" or "Through 11.06" that indicate which model years a procedure applies to. The index parses these into `from` and `through` year fields on each result.
 - **`applicable_only=true` filters by model year.** Set this parameter to `true` to drop results whose parsed applicability range excludes the vehicle's model year. Results without any applicability label are always included.
 

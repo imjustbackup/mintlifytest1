@@ -1,5 +1,5 @@
 ---
-title: "View Diagrams and Images from Repair Manuals"
+title: "View Diagrams and Images from Repair Manuals via get_image"
 sidebarTitle: "Images"
 description: "Use get_image to retrieve wiring diagrams, component photos, and technical illustrations from repair manual pages as MCP image blocks."
 ---
@@ -80,6 +80,8 @@ The server validates the image payload against its declared content type before 
   <Card title="BMP" icon="image" />
   <Card title="TIFF" icon="image" />
   <Card title="SVG" icon="code" />
+  <Card title="ICO" icon="image" />
+  <Card title="AVIF / HEIF" icon="image" />
 </CardGroup>
 
 The server checks that the image byte signature matches the declared MIME type and, for JPEG and PNG, that the reported pixel dimensions are valid. Any payload that fails these checks is rejected with an explicit error rather than silently passed through.

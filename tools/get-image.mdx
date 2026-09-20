@@ -1,5 +1,5 @@
 ---
-title: "get_image: Retrieve Manual Diagrams and Photos"
+title: "get_image: Retrieve Repair Manual Diagrams and Photos"
 sidebarTitle: "get_image"
 description: "get_image fetches a repair manual image by opaque path and returns a validated MCP image block. Supports JPEG, PNG, GIF, WebP, and more, up to 2 MB."
 ---
@@ -41,19 +41,20 @@ The following image formats are accepted:
 | BMP | `image/bmp` |
 | TIFF | `image/tiff` |
 | SVG | `image/svg+xml` |
+| ICO | `image/x-icon`, `image/vnd.microsoft.icon` |
 | AVIF / HEIF | `image/avif`, `image/heif` |
 
 The server validates the image signature (magic bytes) against the declared MIME type and rejects payloads that do not match.
 
 ## Size Limit
 
-Images are capped at **2 MB (2,097,152 bytes)**. The server checks both the `Content-Length` header and the actual downloaded payload size. If either exceeds the limit, the tool returns an error and no image data is returned. Images are never truncated — you either get the complete image or an error.
+Images are capped at **2 MB (2097152 bytes)**. The server checks both the `Content-Length` header and the actual downloaded payload size. If either exceeds the limit, the tool returns an error and no image data is returned. Images are never truncated — you either get the complete image or an error.
 
 ## Error Cases
 
 | Situation | Error message |
 |---|---|
-| Image exceeds 2 MB | `"Image is N bytes, above the 2,097,152-byte (2 MB) limit. No partial image was returned."` |
+| Image exceeds 2 MB | `"Image is N bytes, above the 2097152-byte (2 MB) limit. No partial image was returned."` |
 | Path points to an HTML page, not an image | `"This path is not an image. Use get_image only with an image path returned by get_page."` |
 | Image host unreachable | `"The image could not be reached. Try again later."` |
 | Upstream returned a non-2xx status | `"The image is unavailable (upstream returned N). Verify the opaque path came from get_page."` |

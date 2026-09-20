@@ -1,7 +1,7 @@
 ---
-title: "Run LEMON Manuals MCP in Docker"
+title: "Running LEMON Manuals MCP in Docker: Container Setup"
 sidebarTitle: "Docker"
-description: "Deploy LEMON Manuals MCP as a Docker container with persistent data volumes for the vehicle index files and search database."
+description: "Deploy LEMON Manuals MCP as a Docker container with persistent data volumes for vehicle index files, the search database, and port 8787."
 ---
 
 A `Dockerfile` is included in the repository so you can run the MCP server as a container without installing Bun on the host. The image is built on the official `oven/bun:1-alpine` base, installs only production dependencies, and starts the server directly with Bun. The container exposes port `8787` and expects a writable `/app/data` volume for the vehicle index files and search database.

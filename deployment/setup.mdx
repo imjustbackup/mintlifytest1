@@ -1,7 +1,7 @@
 ---
-title: "Self-Hosting LEMON Manuals MCP: Setup Guide"
+title: "Self-Hosting LEMON Manuals MCP: Installation Guide"
 sidebarTitle: "Setup"
-description: "Set up and run the LEMON Manuals MCP server locally or in your infrastructure, including fetching index files and connecting to your manual archive backend."
+description: "Set up and run LEMON Manuals MCP locally or in your infrastructure, including fetching index files and connecting to your manual archive backend."
 ---
 
 LEMON Manuals MCP is a self-hosted server — you run it alongside your own LEMON/CHARM manual archive. There is no hosted version. You own the infrastructure, the index files, and the backend that serves manual pages. This guide walks you through everything from cloning the repository to registering the server with your AI client.
@@ -11,7 +11,7 @@ LEMON Manuals MCP is a self-hosted server — you run it alongside your own LEMO
 Before you start, make sure you have the following in place:
 
 - **[Bun](https://bun.sh) runtime** — Bun is the JavaScript runtime used to install dependencies and run the server. Install it from [bun.sh](https://bun.sh) if you don't have it already.
-- **A running `lemon-website` backend** — The MCP server fetches manual page content from a live `lemon-website` instance. This is the HTML manual server from the `kubernetes/apps/lemon-manuals/` home-lab repo. The MCP server needs HTTP reach to it.
+- **A running `lemon-website` backend** — The MCP server fetches manual page content from a live `lemon-website` instance. This is the HTTP server that serves your LEMON/CHARM manual archive. The MCP server needs HTTP reach to it.
 - **Vehicle index files** — `lemon-index.json` and `charm-index.json` are large index files (~147 MB combined) that the server loads at startup. You fetch them from the cluster (see [Fetching Index Files](#fetching-index-files) below). They are not included in the repository.
 
 ## Installation
@@ -28,11 +28,11 @@ bun install
 
 The server requires `lemon-index.json` and `charm-index.json` to be present in the `data/` directory. These files are gitignored because they are ~147 MB and can be re-fetched from your cluster at any time.
 
-Pull them from your running `lemon-website` deployment with `kubectl`:
+Pull them from your running `lemon-website` deployment with `kubectl` (substitute your own namespace and deployment name):
 
 ```bash
-kubectl -n lemon-manuals exec deploy/lemon-website -- cat /data/lemon/index.json > data/lemon-index.json
-kubectl -n lemon-manuals exec deploy/lemon-website -- cat /data/charm/index.json > data/charm-index.json
+kubectl -n <your-namespace> exec deploy/lemon-website -- cat /data/lemon/index.json > data/lemon-index.json
+kubectl -n <your-namespace> exec deploy/lemon-website -- cat /data/charm/index.json > data/charm-index.json
 ```
 
 Once fetched, the server loads both files at startup and holds the full ~305,000 vehicle index in memory for fast lookups (~200 ms load time).
@@ -47,10 +47,10 @@ The server fetches manual page content from `lemon-website` at runtime. Set the 
 export LEMON_BASE_URL=http://your-lemon-backend:8080
 ```
 
-The default value is `http://127.0.0.1:18080`, which matches the local port-forward below. For local development, forward the cluster service to your machine:
+The default value is `http://127.0.0.1:18080`. For local development, forward the cluster service to your machine (substitute your own namespace):
 
 ```bash
-kubectl -n lemon-manuals port-forward deploy/lemon-website 18080:8080
+kubectl -n <your-namespace> port-forward deploy/lemon-website 18080:8080
 ```
 
 Leave that running in a separate terminal while you work with the MCP server.
