@@ -1,0 +1,23 @@
+services:
+  docs:
+    build: .
+    container_name: mintlifytest1-docs
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - docs
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: mintlifytest1-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - docs
+    networks:
+      - docs
+
+networks:
+  docs:
+    driver: bridge
