@@ -1,0 +1,20 @@
+:root {
+  --sl-color-accent-low: #052e1b;
+  --sl-color-accent: #16a34a;
+  --sl-color-accent-high: #86efac;
+  --sl-content-width: 50rem;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #dcfce7;
+  --sl-color-accent: #16a34a;
+  --sl-color-accent-high: #166534;
+}
+
+.hero {
+  padding-bottom: 2rem;
+}
+
+.sl-markdown-content .card-grid {
+  margin-top: 2rem;
+}
