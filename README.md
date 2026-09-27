@@ -1,55 +1,100 @@
-# Mintlify Starter Kit
+# Self-hosted documentation site
 
-Use the starter kit to get your docs deployed and ready to customize.
+This branch converts the original Mintlify Starter Kit to **Astro + Starlight** so the documentation can be built and hosted independently. Starlight uses `src/content/docs/` for documentation pages and Astro generates the production site. citeturn0search2turn0search14
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
-
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
-
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
-
-## AI-assisted writing
-
-Set up your AI coding tool to work with Mintlify:
+## Local development
 
 ```bash
-npx skills add https://mintlify.com/docs
+npm install
+npm run dev
 ```
 
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
+## Production build
 
-See the [AI tools guides](/ai-tools) for tool-specific setup.
-
-## Development
-
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
-
-```
-npm i -g mint
+```bash
+npm run build
 ```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+The generated static site is placed in `dist/`.
+
+## UGREEN NAS + Cloudflare Tunnel
+
+The intended NAS deployment is:
 
 ```
-mint dev
+Internet
+   |
+Cloudflare
+   |
+Cloudflare Tunnel (outbound connection)
+   |
+cloudflared container
+   |
+docs container
+   |
+Nginx serving Astro's dist/
 ```
 
-View your local preview at `http://localhost:3000`.
+Cloudflare Tunnel uses outbound connections, so the NAS does not need an inbound port-forwarding rule. Cloudflare's current Docker guidance recommends a remotely-managed tunnel. citeturn0search0turn0search9
 
-## Publishing changes
+### 1. Create the Cloudflare tunnel
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+In Cloudflare:
 
-## Need help?
+1. Add your domain to Cloudflare.
+2. Go to **Networking → Tunnels**.
+3. Create a remotely-managed tunnel.
+4. Add a published application route.
+5. Set the public hostname to something such as `docs.yourdomain.com`.
+6. Set the service URL to `http://docs:80`.
 
-### Troubleshooting
+Cloudflare's published-application route maps the public hostname to the local service. citeturn0search1turn0search10
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
+### 2. Put the tunnel token in an environment file
 
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+Copy `.env.example` to `.env` and replace the placeholder:
+
+```bash
+cp .env.example .env
+```
+
+Do **not** commit the real token.
+
+### 3. Deploy on the NAS
+
+From the repository directory:
+
+```bash
+docker compose up -d --build
+```
+
+Check the containers:
+
+```bash
+docker compose ps
+docker compose logs -f cloudflared
+```
+
+The Cloudflare tunnel and the docs container share a private Docker network. The docs container is not published directly to the NAS host, so there is no need to expose port 80 or 443 to your LAN/router.
+
+### 4. DNS / hostname
+
+Use the hostname configured in the Cloudflare tunnel, for example:
+
+```
+https://docs.yourdomain.com
+```
+
+Cloudflare handles the public HTTPS endpoint and sends traffic through the tunnel to the NAS. citeturn0search1
+
+## Files
+
+- `src/content/docs/` — documentation
+- `src/assets/logo/` — light/dark branding
+- `src/styles/custom.css` — visual customization
+- `astro.config.mjs` — Starlight configuration
+- `Dockerfile` — production image
+- `docker-compose.yml` — NAS + Cloudflare deployment
+- `.env.example` — tunnel-token template
+
+The original Mintlify-specific `docs.json` remains in the repository as a reference; the self-hosted build does not require Mintlify.
